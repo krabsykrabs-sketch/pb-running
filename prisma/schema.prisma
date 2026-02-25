@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ──────────────────────────────────────────────────────────
+
+enum Role {
+  COACH
+  RUNNER
+}
+
+enum GoalPriority {
+  FINISH
+  TIME_GOAL
+  ENJOY
+}
+
+enum GoalStatus {
+  ACTIVE
+  ACHIEVED
+  ABANDONED
+}
+
+enum HealthSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+}
+
+enum HealthStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+}
+
+enum WorkoutType {
+  EASY
+  LONG
+  TEMPO
+  INTERVAL
+  RACE_PACE
+  HR_TRAINING
+  SC
+  REST
+  CROSS_TRAINING
+  RACE
+}
+
+enum Activity {
+  RUN
+  CYCLE
+  SWIM
+  HIKE
+  SC
+  REST
+  OTHER
+}
+
+enum Intensity {
+  LOW
+  MODERATE
+  HIGH
+}
+
+// ── Models ─────────────────────────────────────────────────────────
+
+model User {
+  id                  String   @id @default(uuid())
+  email               String   @unique
+  passwordHash        String   @map("password_hash")
+  name                String
+  role                Role
+  isActive            Boolean  @default(true) @map("is_active")
+  stravaAccessToken   String?  @map("strava_access_token")
+  stravaRefreshToken  String?  @map("strava_refresh_token")
+  stravaAthleteId     String?  @map("strava_athlete_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  profile             RunnerProfile?
+  nutritionPlan       NutritionPlan?
+  personalBests       PersonalBest[]
+  goals               Goal[]
+  healthLogsAsRunner  HealthLog[]         @relation("HealthLogRunner")
+  healthLogsAsAuthor  HealthLog[]         @relation("HealthLogAuthor")
+  availability        RunnerAvailability[]
+  plans               Plan[]
+  workoutLogs         WorkoutLog[]
+  comments            Comment[]
+  stravaActivities    StravaActivity[]
+  reviews             RunnerReview[]
+
+  @@map("users")
+}
+
+model RunnerProfile {
+  id                   String       @id @default(uuid())
+  userId               String       @unique @map("user_id")
+  age                  Int?
+  gender               String?
+  phone                String?
+  yearsRunning         Int?         @map("years_running")
+  currentWeeklyKm      Decimal?     @map("current_weekly_km")
+  recentRaces          String?      @map("recent_races")
+  goalRace             String?      @map("goal_race")
+  goalRaceDate         DateTime?    @map("goal_race_date") @db.Date
+  goalTime             String?      @map("goal_time")
+  goalPriority         GoalPriority? @map("goal_priority")
+  trainingDaysPerWeek  Int?         @map("training_days_per_week")
+  preferredDays        String?      @map("preferred_days")
+  preferredTimeOfDay   String?      @map("preferred_time_of_day")
+  maxSessionLengthMin  Int?         @map("max_session_length_min")
+  chronicConditions    String?      @map("chronic_conditions")
+  medications          String?
+  dietType             String?      @map("diet_type")
+  dietaryRestrictions  String?      @map("dietary_restrictions")
+  hydrationHabits      String?      @map("hydration_habits")
+  previousCoaching     String?      @map("previous_coaching")
+  hasHrMonitor         Boolean      @default(false) @map("has_hr_monitor")
+  hasGymAccess         Boolean      @default(false) @map("has_gym_access")
+  hasTrackAccess       Boolean      @default(false) @map("has_track_access")
+  otherNotes           String?      @map("other_notes")
+  reviewIntervalDays   Int          @default(7) @map("review_interval_days")
+  createdAt            DateTime     @default(now()) @map("created_at")
+  updatedAt            DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("runner_profiles")
+}
+
+model NutritionPlan {
+  id              String   @id @default(uuid())
+  runnerId        String   @unique @map("runner_id")
+  generalStrategy String?  @map("general_strategy")
+  raceDay         String?  @map("race_day")
+  supplements     String?
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  runner User @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+
+  @@map("nutrition_plans")
+}
+
+model PersonalBest {
+  id       String    @id @default(uuid())
+  runnerId String    @map("runner_id")
+  distance String
+  time     String
+  raceName String?   @map("race_name")
+  date     DateTime  @db.Date
+
+  runner User @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+
+  @@map("personal_bests")
+}
+
+model Goal {
+  id          String     @id @default(uuid())
+  runnerId    String     @map("runner_id")
+  description String
+  targetDate  DateTime   @map("target_date") @db.Date
+  status      GoalStatus @default(ACTIVE)
+
+  runner User @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+
+  @@map("goals")
+}
+
+model SessionCatalogue {
+  id          String       @id @default(uuid())
+  name        String
+  activity    Activity
+  workoutType WorkoutType? @map("workout_type")
+  distanceKm  Decimal?     @map("distance_km")
+  targetPace  String?      @map("target_pace")
+  durationMin Int?         @map("duration_min")
+  intensity   Intensity?
+  details     String       @default("")
+  coachNotes  String?      @map("coach_notes")
+  nutrition   String?
+  isPbRunning Boolean      @default(false) @map("is_pb_running")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  workouts Workout[]
+
+  @@map("session_catalogue")
+}
+
+
+model HealthLog {
+  id          String         @id @default(uuid())
+  runnerId    String         @map("runner_id")
+  authorId    String         @map("author_id")
+  date        DateTime       @db.Date
+  description String
+  bodyPart    String         @map("body_part")
+  severity    HealthSeverity
+  status      HealthStatus   @default(ACTIVE)
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  runner User @relation("HealthLogRunner", fields: [runnerId], references: [id], onDelete: Cascade)
+  author User @relation("HealthLogAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("health_log")
+}
+
+model RunnerAvailability {
+  id       String   @id @default(uuid())
+  runnerId String   @map("runner_id")
+  date     DateTime @db.Date
+  note     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  runner User @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+
+  @@unique([runnerId, date])
+  @@map("runner_availability")
+}
+
+model Plan {
+  id        String     @id @default(uuid())
+  runnerId  String     @map("runner_id")
+  name      String
+  goal      String
+  raceDate  DateTime?  @map("race_date") @db.Date
+  startDate DateTime   @map("start_date") @db.Date
+  endDate   DateTime   @map("end_date") @db.Date
+  status    PlanStatus @default(DRAFT)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  runner User    @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  blocks Block[]
+
+  @@map("plans")
+}
+
+model Block {
+  id          String   @id @default(uuid())
+  planId      String   @map("plan_id")
+  name        String
+  orderIndex  Int      @map("order_index")
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  plan  Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+  weeks Week[]
+
+  @@map("blocks")
+}
+
+model Week {
+  id            String   @id @default(uuid())
+  blockId       String   @map("block_id")
+  weekNumber    Int      @map("week_number")
+  startDate     DateTime @map("start_date") @db.Date
+  description   String?
+  targetKm      Decimal? @map("target_km")
+  weekIntensity String?  @map("week_intensity")
+  pacesFocus    String?  @map("paces_focus")
+  coachWeekNote String?  @map("coach_week_note")
+  isPopulated   Boolean  @default(false) @map("is_populated")
+
+  block    Block     @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  workouts Workout[]
+
+  @@map("weeks")
+}
+
+model Workout {
+  id                 String      @id @default(uuid())
+  weekId             String      @map("week_id")
+  date               DateTime    @db.Date
+  title              String
+  workoutType        WorkoutType @map("workout_type")
+  activity           Activity
+  distanceKm         Decimal?    @map("distance_km")
+  targetPace         String?     @map("target_pace")
+  durationMin        Int?        @map("duration_min")
+  intensity          Intensity
+  details            String
+  coachNotes         String?     @map("coach_notes")
+  nutrition          String?
+  isPbRunning        Boolean     @default(false) @map("is_pb_running")
+  catalogueSessionId String?     @map("catalogue_session_id")
+
+  week             Week              @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  catalogueSession SessionCatalogue? @relation(fields: [catalogueSessionId], references: [id], onDelete: SetNull)
+  log              WorkoutLog?
+  stravaActivity   StravaActivity?
+
+  @@map("workouts")
+}
+
+model WorkoutLog {
+  id               String   @id @default(uuid())
+  workoutId        String   @unique @map("workout_id")
+  runnerId         String   @map("runner_id")
+  completed        Boolean  @default(false)
+  actualDistanceKm Decimal? @map("actual_distance_km")
+  actualPace       String?  @map("actual_pace")
+  actualDurationMin Int?    @map("actual_duration_min")
+  avgHeartRate     Int?     @map("avg_heart_rate")
+  rpe              Int?
+  runnerNotes      String?  @map("runner_notes")
+  stravaActivityId String?  @map("strava_activity_id")
+  loggedAt         DateTime @default(now()) @map("logged_at")
+
+  workout  Workout   @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  runner   User      @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  comments Comment[]
+
+  @@unique([workoutId, runnerId])
+  @@map("workout_logs")
+}
+
+model Comment {
+  id           String   @id @default(uuid())
+  workoutLogId String   @map("workout_log_id")
+  authorId     String   @map("author_id")
+  content      String
+  read         Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  workoutLog WorkoutLog @relation(fields: [workoutLogId], references: [id], onDelete: Cascade)
+  author     User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model StravaActivity {
+  id              String   @id @default(uuid())
+  runnerId        String   @map("runner_id")
+  stravaId        String   @unique @map("strava_id")
+  name            String
+  distanceKm      Decimal  @map("distance_km")
+  durationMin     Decimal  @map("duration_min")
+  avgPace         String   @map("avg_pace")
+  avgHeartRate    Int?     @map("avg_heart_rate")
+  startDate       DateTime @map("start_date")
+  rawData         Json     @map("raw_data")
+  linkedWorkoutId String?  @unique @map("linked_workout_id")
+
+  runner  User     @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  workout Workout? @relation(fields: [linkedWorkoutId], references: [id], onDelete: SetNull)
+
+  @@map("strava_activities")
+}
+
+model RunnerReview {
+  id         String   @id @default(uuid())
+  runnerId   String   @map("runner_id")
+  reviewedAt DateTime @default(now()) @map("reviewed_at")
+  notes      String
+
+  runner User @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+
+  @@map("runner_reviews")
+}
