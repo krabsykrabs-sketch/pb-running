@@ -59,7 +59,9 @@ src/
     join/page.tsx         # Runner signup form (requires signup code)
     coach/
       layout.tsx          # Sidebar nav (Dashboard, Runners, Templates, Sessions)
-      page.tsx            # Dashboard — runner list table (server component)
+      page.tsx            # Dashboard — compliance, reviews, conflicts, injuries (server component)
+      _components/
+        coach-dashboard.tsx  # Sortable table with inline review form (client component)
       runners/
         new/page.tsx      # Intake form (7 sections, client component)
         [id]/
@@ -74,7 +76,15 @@ src/
             nutrition-tab.tsx   # Inline edit form
     runner/
       layout.tsx          # Header + bottom tabs
-      page.tsx            # Placeholder (Step 4)
+      page.tsx            # Dashboard — race countdown, today's workout, 7-day grid
+      calendar/page.tsx   # Full plan calendar (all blocks/weeks)
+      history/page.tsx    # Workout history (reverse chronological)
+      profile/
+        page.tsx          # Server wrapper — fetches runner data via Prisma
+        _components/
+          runner-profile-view.tsx  # Scrollable read-only profile with health log add
+      workout/[workoutId]/
+        page.tsx          # Workout detail with logging + comments
     api/
       auth/
         [...nextauth]/route.ts
@@ -90,6 +100,7 @@ src/
           goals/[goalId]/route.ts   # PUT, DELETE
           health/route.ts           # GET, POST
           nutrition/route.ts        # GET, PUT (upsert)
+          reviews/route.ts          # GET, POST (coach reviews)
   lib/
     auth.ts               # NextAuth setup
     auth.config.ts         # Edge-safe auth config
@@ -103,50 +114,29 @@ src/
 ### Done
 - **Step 1**: Auth system, Prisma schema (all 18 models), middleware, login/join pages, coach/runner layouts
 - **Step 2**: Runner management — intake form, dashboard table, runner detail page with 6 tabs (overview, profile, PBs, goals, health, nutrition), 9 API route files
+- **Step 3**: Plan Structure + Session Catalogue — session catalogue CRUD, plan creation with blocks/weeks/workouts, reordering, catalogue assignment, week summary fields
+- **Step 4**: Runner Views — dashboard with race countdown + 7-day grid, full plan calendar, availability markers, workout detail page, workout history
+- **Step 5**: Workout Logging + Feedback — runner logs actual data, planned vs actual comparison (both runner and coach side), coach comments on workout logs, coach weekly summary notes (coachWeekNote), unread feedback indicator, runner profile page (read-only with health log add)
+- **Step 6**: Coach Dashboard + Reviews — enhanced dashboard with compliance %, review cycle tracking (configurable interval, urgency-sorted), availability conflict alerts, active injury indicators, inline "Mark Reviewed" with notes, sortable columns (urgency/compliance/injuries/name/lastReviewed)
 
 ### Next Steps
 
-**Step 3: Plan Structure + Session Catalogue**
-- Session catalogue CRUD (coach builds library of cross-training sessions)
-- Plan creation (assign to runner, set race/goal/dates)
-- Block management within plans (create, reorder, edit)
-- Week management within blocks (week_number, description, target_km, intensity)
-- Workout creation within weeks (from scratch or from catalogue)
-- Weekly summary fields (planned km, intensity label, paces focus)
+**Step 7: Strava Integration**
+- OAuth2 connect/disconnect flow for runners
+- Manual "Sync Strava" button to pull recent activities
+- Auto-match activities to planned workouts by date
+- Auto-complete workout logs with Strava data (distance, pace, duration, HR)
+- Link to original Strava activity
+- Webhook support for real-time sync (enhancement after manual sync works)
+- See `docs/strava-integration.md` for full design
 
-**Step 4: Runner Views**
-- Runner dashboard (current week — 7-day card view)
-- Full plan calendar (scrollable, far-out weeks show summary only)
-- Availability markers (runner can flag dates with notes)
-- Workout detail page (view planned session, coach notes, nutrition)
-- Race day countdown on dashboard
-
-**Step 5: Workout Logging + Feedback**
-- Runner logs actual data (completed, distance, pace, HR, RPE, notes)
-- Planned vs. actual comparison view (side by side)
-- Coach comments on workout logs
-- Coach weekly summary notes at week level
-- Unread feedback indicator for runners
-
-**Step 6: Coach Dashboard + Reviews**
-- Batch overview of all runners (compliance %, last reviewed, conflicts, injuries)
-- Review cycle tracking (configurable interval, "Needs Review" sorted by urgency)
-- Availability conflict alerts
-- Active injury indicators from health log
-
-**Step 7: Templates + Plan Generator**
-- Save week/block as template (name + JSON)
-- Plan templates (full plan skeletons)
-- Apply template → generates editable structure
-- Plan generator wizard (lower priority, can be Phase 1.5)
-
-### Phase 2 (Not Yet)
-- Strava integration (columns exist in schema but unused)
+### Future (Lower Priority)
+- Templates + Plan Generator (save week/block as template, apply to new plans)
 
 ## Important Notes
 
 - Personal Bests are coach-managed only — runners cannot edit
 - Session catalogue is private to coach — runners only see sessions placed in their plans
-- Strava columns exist in User model as nullable — do NOT build integration yet
+- Strava columns exist in User model as nullable — ready for integration
 - The week intensity field (e.g. "High (42)") comes from Excel TOTAL PLANNED column
 - `npm run build` must pass cleanly before considering a step complete
